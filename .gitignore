@@ -32,3 +32,19 @@ build/
 ### VS Code ###
 .vscode/
 data/
+# --- OS ---
+.DS_Store
+
+# --- Java/Maven build output (念のため) ---
+target/
+*.log
+
+# --- H2 (file mode) ---
+*.mv.db
+*.trace.db
+*.db
+
+# --- Env files (使うなら) ---
+.env
+.env.*
+
