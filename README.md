@@ -1,104 +1,188 @@
 # TaskFlow API
 
-Spring Boot 4 × JPA × Docker × PostgreSQL 対応の  
-**実務想定タスク管理REST API** です。
-
-設計・拡張性・再現性を重視し、  
-検索・ページング・例外設計・プロファイル分離まで実装しています。
+Spring Boot を用いたタスク管理 REST API です。  
+JWT認証・検索・ページング・ソート・永続化（H2 / PostgreSQL）・Docker 対応まで実装したポートフォリオプロジェクトです。
 
 ---
 
-# 🚀 30秒で起動（Docker推奨）
+# 🚀 技術スタック
 
-```bash
-docker compose up --build
-```
-
-Swagger:
-http://localhost:8081/swagger-ui/index.html
-
-PostgreSQLを含めた完全再現環境で起動します。
+- Java 21
+- Spring Boot 4
+- Spring Data JPA
+- Spring Security
+- JWT（jjwt）
+- H2 Database（file mode / ローカル用）
+- PostgreSQL（Docker / 本番想定）
+- Maven
+- Swagger（OpenAPI）
+- Docker / Docker Compose
+- Lombok
 
 ---
 
 # 🏗 アーキテクチャ
 
-```
-Controller
-   ↓
-Service
-   ↓
-Repository
-   ↓
-Entity
-```
+Client  
+↓  
+Controller  
+↓  
+Service  
+↓  
+Repository  
+↓  
+Database
 
-## 設計上の工夫
+## 設計ポイント
 
-- Entityを外部公開せずDTOで分離
-- Specificationによる動的検索
-- Pageableによるページング
-- PageResponseでレスポンス形式を統一
-- GlobalExceptionHandlerで例外共通化
-- H2 / PostgreSQL プロファイル分離
-- Docker + healthcheck による安定起動
-
----
-
-# 🧠 技術スタック
-
-- Java 21
-- Spring Boot 4
-- Spring Data JPA
-- H2 (file mode)
-- PostgreSQL 16
-- Docker / Docker Compose
-- OpenAPI (Swagger)
-- Lombok
+- Entity を直接外部公開せず DTO を使用
+- Specification による動的検索
+- Pageable によるページング実装
+- GlobalExceptionHandler による例外共通化
+- PageResponse によるレスポンス形式の統一
+- JWT による stateless 認証
+- DB切替（H2 / PostgreSQL）をプロファイルで分離
 
 ---
 
-# 📌 主な機能
+# 📦 主な機能
 
-### CRUD
-- タスク作成
-- タスク取得
-- タスク更新
-- タスク削除
-
-### 検索機能
+- タスクの CRUD
+- ステータス管理（TODO / DOING / DONE）
+- 優先度管理（LOW / MEDIUM / HIGH）
 - キーワード検索（title / description）
-- ステータスフィルタ
-- 優先度フィルタ
+- ステータス・優先度フィルタ
 - 期限範囲検索
 - ページング対応
 - ソート対応
+- JWT認証（Bearerトークン）
+- 永続化
+  - H2 file mode
+  - PostgreSQL（Docker）
+- Swagger による API ドキュメント生成
 
 ---
 
-# 🔎 API使用例
+# 🔐 認証仕様（JWT）
 
-## タスク作成
+1. `POST /api/auth/register` でユーザー作成
+2. `POST /api/auth/login` でJWT発行
+3. `/api/tasks/**` は Authorization: Bearer <token> が必須
+4. 未認証アクセスは 403
+
+---
+
+# 🔌 エンドポイント
+
+## 認証
+
+| Method | URL | 説明 |
+|--------|-----|------|
+| POST | /api/auth/register | ユーザー登録 |
+| POST | /api/auth/login | JWT取得 |
+
+## タスク
+
+| Method | URL | 説明 |
+|--------|-----|------|
+| POST | /api/tasks | タスク作成（認証必須） |
+| GET | /api/tasks | 一覧 + 検索 + ページング（認証必須） |
+| GET | /api/tasks/{id} | 単体取得（認証必須） |
+| PUT | /api/tasks/{id} | 更新（認証必須） |
+| DELETE | /api/tasks/{id} | 削除（認証必須） |
+
+---
+
+# 🖥 ローカル起動（H2）
+
+※ ローカルは 8082 で起動（Dockerとポート衝突回避）
 
 ```bash
-curl -X POST http://localhost:8081/api/tasks \
+./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
+```
+
+Swagger UI  
+http://localhost:8082/swagger-ui/index.html
+
+H2 Console  
+http://localhost:8082/h2-console  
+JDBC URL: jdbc:h2:file:./data/taskflow
+
+---
+
+# 🐳 Docker起動（PostgreSQL）
+
+```bash
+docker compose up --build
+```
+
+停止：
+
+```bash
+docker compose down
+```
+
+Swagger UI  
+http://localhost:8081/swagger-ui/index.html
+
+---
+
+# 🧪 動作確認（curl例）
+
+## 1. ユーザー登録
+
+```bash
+curl -X POST http://localhost:8082/api/auth/register \
   -H "Content-Type: application/json" \
+  -d '{"username":"kudo","password":"pass1234"}'
+```
+
+---
+
+## 2. ログイン（JWT取得）
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8082/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"kudo","password":"pass1234"}' | jq -r .token)
+
+echo $TOKEN
+```
+
+---
+
+## 3. タスク一覧取得（JWT付き）
+
+```bash
+curl http://localhost:8082/api/tasks \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 4. タスク作成（JWT付き）
+
+```bash
+curl -X POST http://localhost:8082/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{
-    "title":"TaskFlow確認",
-    "description":"docker + postgres",
+    "title":"JWT確認",
+    "description":"ok",
     "status":"TODO",
     "priority":"HIGH",
-    "dueDate":"2026-03-01"
+    "dueDate":"2026-02-28"
   }'
 ```
 
 ---
 
-## タスク検索（URLエンコード推奨）
+## 5. 検索 + ページング + ソート
 
 ```bash
-curl -G http://localhost:8081/api/tasks \
-  --data-urlencode "q=確認" \
+curl -G "http://localhost:8082/api/tasks" \
+  -H "Authorization: Bearer $TOKEN" \
+  --data-urlencode "q=JWT" \
   --data-urlencode "page=0" \
   --data-urlencode "size=10" \
   --data-urlencode "sort=dueDate,desc"
@@ -106,54 +190,54 @@ curl -G http://localhost:8081/api/tasks \
 
 ---
 
-# ⚙️ プロファイル構成
+# 🐳 Docker構成
 
-| Profile | Database |
-|----------|-----------|
-| h2 | ローカル検証用（file mode永続化） |
-| postgres | Docker本番想定 |
-
-### H2で起動する場合
-
-```bash
-./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
-```
+taskflow-app（Spring Boot / profile=postgres / port=8081）  
+↓  
+PostgreSQL 16（taskflow DB）
 
 ---
 
-# 🎯 設計意図
+# 📁 永続化
 
-本プロジェクトは以下を目的としています：
+H2  
+./data/taskflow.mv.db
 
-- 実務レベルのレイヤード設計
-- 検索拡張が容易なSpecification設計
-- DB変更に耐えられる構造
-- 環境差異のないDocker構成
-- 保守性を意識した例外設計
-- レスポンス構造の安定化
+PostgreSQL  
+Docker Volume: taskflow-pgdata
 
 ---
 
-# 🔮 今後の拡張予定
+# 🎯 設計思想
 
-- JWT認証（Spring Security）
-- Flyway導入
-- Reactフロントエンド接続
+- 実務レベルを意識したレイヤードアーキテクチャ
+- Stateless JWT認証
+- DB切替可能な設計
+- 検索条件追加が容易なSpecification設計
+- 保守性・拡張性を意識
+
+---
+
+# 🔮 今後の拡張
+
+- ユーザーごとのタスク分離（owner管理）
+- 権限管理（ROLE_USER / ROLE_ADMIN）
+- CI/CD（GitHub Actions）
 - AWSデプロイ
-- CI/CD構築
+- フロントエンド（React / Next.js）
+- マイグレーション管理（Flyway）
 
 ---
 
-# 📌 ポイント
+# 💡 このプロジェクトで証明できること
 
-- 学習用ではなく「実務設計」を意識
-- DB切替可能な構成
-- 再現性のあるDocker環境
-- 拡張しやすい検索設計
+- REST API 設計力
+- JWT認証実装力
+- 検索 + ページング + ソート実装力
+- DB切替設計（H2 → PostgreSQL）
+- Docker対応スキル
+- 実務レベルの構造設計理解
 
 ---
 
-## 👤 Author
-
-Kudo Nozomu  
-Backend Engineer Portfolio
+作成者: Nozomu Kudo
