@@ -1,128 +1,159 @@
-# Taskflow API
+# TaskFlow API
 
-Spring Boot を用いたタスク管理REST APIです。  
-検索・ページング・ソート・永続化・Docker対応まで実装したポートフォリオプロジェクトです。
+Spring Boot 4 × JPA × Docker × PostgreSQL 対応の  
+**実務想定タスク管理REST API** です。
 
----
-
-## 技術スタック
-
-- Java 21
-- Spring Boot 4
-- Spring Data JPA
-- H2 Database（file mode）
-- Maven
-- Swagger（OpenAPI）
-- Docker / Docker Compose
-- Lombok
+設計・拡張性・再現性を重視し、  
+検索・ページング・例外設計・プロファイル分離まで実装しています。
 
 ---
 
-## アーキテクチャ構成
-
-Controller  
-↓  
-Service  
-↓  
-Repository  
-↓  
-Entity
-
-- Entityを直接外部公開せずDTOを使用
-- Specificationによる動的検索
-- Pageableによるページング実装
-- GlobalExceptionHandlerによる例外共通化
-- PageResponseによるレスポンス固定
-
----
-
-## 主な機能
-
-- タスクのCRUD
-- ステータス管理（TODO / DOING / DONE）
-- 優先度管理（LOW / MEDIUM / HIGH）
-- キーワード検索（title / description）
-- ステータス・優先度フィルタ
-- 期限範囲検索
-- ページング対応
-- ソート対応
-- 永続化（H2 file mode）
-- SwaggerによるAPIドキュメント生成
-- Dockerによるコンテナ実行対応
-
----
-
-## ローカルでの起動
-
-```bash
-./mvnw clean spring-boot:run
-```
-
-Swagger UI  
-http://localhost:8081/swagger-ui/index.html
-
----
-
-## Dockerでの起動
-
-起動：
+# 🚀 30秒で起動（Docker推奨）
 
 ```bash
 docker compose up --build
 ```
 
-停止：
-
-```bash
-Ctrl + C
-docker compose down
-```
-
-Swagger UI  
+Swagger:
 http://localhost:8081/swagger-ui/index.html
+
+PostgreSQLを含めた完全再現環境で起動します。
 
 ---
 
-## 動作確認例
+# 🏗 アーキテクチャ
 
-### タスク作成
+```
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+Entity
+```
+
+## 設計上の工夫
+
+- Entityを外部公開せずDTOで分離
+- Specificationによる動的検索
+- Pageableによるページング
+- PageResponseでレスポンス形式を統一
+- GlobalExceptionHandlerで例外共通化
+- H2 / PostgreSQL プロファイル分離
+- Docker + healthcheck による安定起動
+
+---
+
+# 🧠 技術スタック
+
+- Java 21
+- Spring Boot 4
+- Spring Data JPA
+- H2 (file mode)
+- PostgreSQL 16
+- Docker / Docker Compose
+- OpenAPI (Swagger)
+- Lombok
+
+---
+
+# 📌 主な機能
+
+### CRUD
+- タスク作成
+- タスク取得
+- タスク更新
+- タスク削除
+
+### 検索機能
+- キーワード検索（title / description）
+- ステータスフィルタ
+- 優先度フィルタ
+- 期限範囲検索
+- ページング対応
+- ソート対応
+
+---
+
+# 🔎 API使用例
+
+## タスク作成
 
 ```bash
 curl -X POST http://localhost:8081/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
-    "title":"サンプルタスク",
-    "description":"説明",
+    "title":"TaskFlow確認",
+    "description":"docker + postgres",
     "status":"TODO",
     "priority":"HIGH",
-    "dueDate":"2026-02-28"
+    "dueDate":"2026-03-01"
   }'
 ```
 
-### 検索 + ページング
+---
+
+## タスク検索（URLエンコード推奨）
 
 ```bash
-curl "http://localhost:8081/api/tasks?q=サンプル&page=0&size=10&sort=dueDate,desc"
+curl -G http://localhost:8081/api/tasks \
+  --data-urlencode "q=確認" \
+  --data-urlencode "page=0" \
+  --data-urlencode "size=10" \
+  --data-urlencode "sort=dueDate,desc"
 ```
 
 ---
 
-## 設計方針
+# ⚙️ プロファイル構成
 
-- 実務を想定したレイヤードアーキテクチャ
-- DB変更（PostgreSQL等）を想定した構成
-- 拡張性を考慮した設計
-- 検索条件追加が容易なSpecification実装
+| Profile | Database |
+|----------|-----------|
+| h2 | ローカル検証用（file mode永続化） |
+| postgres | Docker本番想定 |
 
----
+### H2で起動する場合
 
-## 今後の拡張予定
-
-- PostgreSQL対応
-- Spring Securityによる認証機能追加
-- フロントエンド（React等）実装
-- CI/CD導入
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=h2
+```
 
 ---
 
-本プロジェクトは、バックエンドAPI設計力・保守性・拡張性を意識して構築したポートフォリオです。
+# 🎯 設計意図
+
+本プロジェクトは以下を目的としています：
+
+- 実務レベルのレイヤード設計
+- 検索拡張が容易なSpecification設計
+- DB変更に耐えられる構造
+- 環境差異のないDocker構成
+- 保守性を意識した例外設計
+- レスポンス構造の安定化
+
+---
+
+# 🔮 今後の拡張予定
+
+- JWT認証（Spring Security）
+- Flyway導入
+- Reactフロントエンド接続
+- AWSデプロイ
+- CI/CD構築
+
+---
+
+# 📌 ポイント
+
+- 学習用ではなく「実務設計」を意識
+- DB切替可能な構成
+- 再現性のあるDocker環境
+- 拡張しやすい検索設計
+
+---
+
+## 👤 Author
+
+Kudo Nozomu  
+Backend Engineer Portfolio
