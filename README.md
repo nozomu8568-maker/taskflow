@@ -134,6 +134,94 @@ Swagger
 http://localhost:8081/swagger-ui/index.html
 
 ---
+---
+
+## ■ 動作確認（Swagger）
+
+Swagger  
+http://localhost:8081/swagger-ui/index.html
+
+### 1) ユーザー作成（初回のみ）
+`POST /api/auth/register` を実行
+
+例：
+```json
+{
+  "username": "userA",
+  "password": "Passw0rd!"
+}
+```
+
+同様に userB も作成：
+```json
+{
+  "username": "userB",
+  "password": "Passw0rd!"
+}
+```
+
+### 2) ログインしてJWT取得
+`POST /api/auth/login` を実行
+
+例：
+```json
+{
+  "username": "userA",
+  "password": "Passw0rd!"
+}
+```
+
+レスポンス例：
+```json
+{
+  "token": "xxxxx.yyyyy.zzzzz"
+}
+```
+
+### 3) Authorize（🔑）にJWTを設定
+Swagger右上の **Authorize（🔑）** を押して、以下を入力：
+
+```
+Bearer {token}
+```
+
+例：
+```
+Bearer xxxxx.yyyyy.zzzzz
+```
+
+> ※ `Bearer ` を二重に入れないこと（`Bearer Bearer ...` になるとJWTがパースできず401になります）
+
+### 4) タスク作成（userA）
+`POST /api/tasks` を実行（JWT必須）
+
+例：
+```json
+{
+  "title": "First task",
+  "description": "created by userA",
+  "status": "TODO",
+  "priority": "MEDIUM",
+  "dueDate": "2026-03-01"
+}
+```
+
+`201 Created` で `id` が返ります。
+
+### 5) タスク取得（userA）
+`GET /api/tasks/{id}` を実行  
+→ `200 OK`
+
+### 6) userBに切り替えて取得できないことを確認
+- `POST /api/auth/login` を userB で実行し token を取得
+- Authorize（🔑）に userB の token を設定し直す
+- `GET /api/tasks/{id}` を実行
+
+→ **`404 Not Found`**（他ユーザーのデータは取得不可）
+
+### 7) token無しで401（JSON）になることを確認
+Authorizeを解除（🔓）して `GET /api/tasks/{id}` を実行  
+→ `401 Unauthorized`（JSONレスポンス）
 
 ## ■ 今後の拡張予定
 
