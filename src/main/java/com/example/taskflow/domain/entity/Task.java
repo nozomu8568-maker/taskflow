@@ -2,6 +2,7 @@ package com.example.taskflow.domain.entity;
 
 import com.example.taskflow.domain.enums.Priority;
 import com.example.taskflow.domain.enums.Status;
+import com.example.taskflow.user.User;          // ★追加
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,4 +34,9 @@ public class Task {
   private Priority priority;
 
   private LocalDate dueDate;
+
+  // ★追加：タスク所有者
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "owner_id", nullable = false)
+  private User owner;
 }

@@ -39,10 +39,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     String token = auth.substring(7);
+
     String username;
     try {
       username = jwtService.extractUsername(token);
     } catch (Exception e) {
+      // トークン不正・期限切れなどは何もせずスルー（=未認証扱い）
       filterChain.doFilter(request, response);
       return;
     }

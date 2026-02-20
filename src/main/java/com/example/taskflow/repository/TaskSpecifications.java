@@ -3,11 +3,17 @@ package com.example.taskflow.repository;
 import com.example.taskflow.domain.entity.Task;
 import com.example.taskflow.domain.enums.Priority;
 import com.example.taskflow.domain.enums.Status;
+import com.example.taskflow.user.User; // ★追加
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 
 public class TaskSpecifications {
+
+  // ★追加：必須 owner フィルタ
+  public static Specification<Task> hasOwner(User owner) {
+    return (root, query, cb) -> cb.equal(root.get("owner"), owner);
+  }
 
   public static Specification<Task> titleOrDescriptionContains(String q) {
     return (root, query, cb) -> {
@@ -15,7 +21,8 @@ public class TaskSpecifications {
       String like = "%" + q.trim().toLowerCase() + "%";
       return cb.or(
           cb.like(cb.lower(root.get("title")), like),
-          cb.like(cb.lower(root.get("description")), like)
+          // ★修正：description が null の場合に備えて coalesce
+          cb.like(cb.lower(cb.coalesce(root.get("description"), "")), like)
       );
     };
   }

@@ -13,12 +13,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.time.LocalDate;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/tasks")
+@SecurityRequirement(name = "bearerAuth")
 public class TaskController {
 
   private final TaskService taskService;

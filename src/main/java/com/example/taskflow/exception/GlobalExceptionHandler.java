@@ -29,4 +29,12 @@ public class GlobalExceptionHandler {
         "fields", fields
     ));
   }
+
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<Map<String, Object>> handleAny(Exception ex) {
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+        "error", "INTERNAL_SERVER_ERROR",
+        "message", ex.getMessage()
+    ));
+  }
 }

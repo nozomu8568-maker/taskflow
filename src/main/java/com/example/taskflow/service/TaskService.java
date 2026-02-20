@@ -9,15 +9,17 @@ import com.example.taskflow.dto.TaskUpdateRequest;
 import com.example.taskflow.exception.NotFoundException;
 import com.example.taskflow.repository.TaskRepository;
 import com.example.taskflow.repository.TaskSpecifications;
+import com.example.taskflow.user.User;
+import com.example.taskflow.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,18 +27,32 @@ import java.util.List;
 public class TaskService {
 
   private final TaskRepository taskRepository;
+  private final UserRepository userRepository;
+
+  // =============================
+  // Current User
+  // =============================
+  private User currentUser() {
+    String username = SecurityContextHolder.getContext().getAuthentication().getName();
+    return userRepository.findByUsername(username)
+        .orElseThrow(() -> new NotFoundException("User not found: username=" + username));
+  }
 
   // =============================
   // Create
   // =============================
   public TaskResponse create(TaskCreateRequest req) {
+    User user = currentUser();
+
     Task saved = taskRepository.save(Task.builder()
         .title(req.title())
         .description(req.description())
         .status(req.status())
         .priority(req.priority())
         .dueDate(req.dueDate())
+        .owner(user) // ★追加：所有者
         .build());
+
     return toResponse(saved);
   }
 
@@ -52,9 +68,11 @@ public class TaskService {
       LocalDate dueTo,
       Pageable pageable
   ) {
+    User user = currentUser();
 
     Specification<Task> spec =
-        TaskSpecifications.titleOrDescriptionContains(q)
+        Specification.where(TaskSpecifications.hasOwner(user)) // ★必須：所有者で絞る
+            .and(TaskSpecifications.titleOrDescriptionContains(q))
             .and(TaskSpecifications.hasStatus(status))
             .and(TaskSpecifications.hasPriority(priority))
             .and(TaskSpecifications.dueDateFrom(dueFrom))
@@ -69,8 +87,11 @@ public class TaskService {
   // =============================
   @Transactional(readOnly = true)
   public TaskResponse get(Long id) {
-    Task task = taskRepository.findById(id)
+    User user = currentUser();
+
+    Task task = taskRepository.findByIdAndOwner(id, user)
         .orElseThrow(() -> new NotFoundException("Task not found: id=" + id));
+
     return toResponse(task);
   }
 
@@ -78,7 +99,9 @@ public class TaskService {
   // Update
   // =============================
   public TaskResponse update(Long id, TaskUpdateRequest req) {
-    Task task = taskRepository.findById(id)
+    User user = currentUser();
+
+    Task task = taskRepository.findByIdAndOwner(id, user)
         .orElseThrow(() -> new NotFoundException("Task not found: id=" + id));
 
     task.setTitle(req.title());
@@ -94,17 +117,21 @@ public class TaskService {
   // Delete
   // =============================
   public void delete(Long id) {
-    if (!taskRepository.existsById(id)) {
-      throw new NotFoundException("Task not found: id=" + id);
-    }
-    taskRepository.deleteById(id);
+    User user = currentUser();
+
+    Task task = taskRepository.findByIdAndOwner(id, user)
+        .orElseThrow(() -> new NotFoundException("Task not found: id=" + id));
+
+    taskRepository.delete(task);
   }
 
   // =============================
   // Toggle Complete
   // =============================
   public TaskResponse toggleComplete(Long id) {
-    Task task = taskRepository.findById(id)
+    User user = currentUser();
+
+    Task task = taskRepository.findByIdAndOwner(id, user)
         .orElseThrow(() -> new NotFoundException("Task not found: id=" + id));
 
     task.setStatus(task.getStatus() == Status.DONE ? Status.TODO : Status.DONE);
